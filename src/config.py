@@ -22,12 +22,13 @@ MODEL_CLASSES = {
 }
 
 
-from model import LanguageHierarchicalClassification
+from model import LanguageHierarchicalClassification, LanguageHierarchicalRelationClassification, LanguageHierarchicalNER
 
 
 MODEL_TASK = {
     "classification": LanguageHierarchicalClassification,
-    "ner": None
+    "ner": LanguageHierarchicalNER,
+    "relation_classification": LanguageHierarchicalRelationClassification
 }
 
 
