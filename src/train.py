@@ -33,6 +33,8 @@ class HierarchicalLabelModelTrain(DataPreprocess):
 
         self.config.o_labels = o_labels
         self.config.m_labels = m_labels
+        self.config.num_o_labels = len(o_labels)
+        self.config.num_m_labels = len(m_labels)
 
         self.train_data, self.train_examples = self._get_data(train_data, o_labels, m_labels, "train")
         logger.info("train data num: {} ".format(str(len(train_data))))
@@ -117,7 +119,10 @@ if __name__ == '__main__':
         "adv_name": 'word_embeddings',
         "crf_learning_rate": 5e-5,
         "start_learning_rate": 0.0001,
-        "end_learning_rate": 0.0001
+        "end_learning_rate": 0.0001,
+        "is_muti_label": False,
+        "trans_dim": 300,
+        "o_label_dim": 25
     }
 
     model_type = ["bert", "ernie", "albert", "roberta", "bert_www", "xlnet_base", "xlnet_mid",

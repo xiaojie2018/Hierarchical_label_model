@@ -76,7 +76,7 @@ class Trainer:
         logger.info("  Logging steps = %d", self.args.logging_steps)
         logger.info("  Save steps = %d", self.args.save_steps)
 
-        witer = SummaryWriter(logdir=self.args.model_dir, comment="BERT_intent")
+        witer = SummaryWriter(logdir=self.args.model_dir, comment="classification")
 
         global_step = 0
         tr_loss = 0.0
@@ -126,8 +126,7 @@ class Trainer:
                         # witer.add_scalar("Test/total", eval_results.get('total', {}).get("recall", 0), global_step)
                         # witer.add_scalar("Test/total", eval_results.get('total', {}).get("f1", 0), global_step)
 
-                        witer.add_scalar("Test/mean", eval_results.get('mean', {}).get("mean_precision", 0),
-                                         global_step)
+                        witer.add_scalar("Test/mean", eval_results.get('mean', {}).get("mean_precision", 0), global_step)
                         witer.add_scalar("Test/mean", eval_results.get('mean', {}).get("mean_recall", 0), global_step)
                         witer.add_scalar("Test/mean", eval_results.get('mean', {}).get("mean_f1-score", 0), global_step)
 
