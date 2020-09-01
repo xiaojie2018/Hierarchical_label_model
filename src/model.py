@@ -18,6 +18,9 @@ class LanguageHierarchicalClassification(BertPreTrainedModel):
         self.config_class, _, config_model = MODEL_CLASSES[args.model_type]
         bert_config = self.config_class.from_pretrained(args.model_name_or_path)
         super(LanguageHierarchicalClassification, self).__init__(bert_config)
+
+        self.bert = config_model.from_pretrained(args.model_name_or_path, config=bert_config)  # Load pretrained bert
+
         self.init_weights()
 
     def forward(self, input_ids, attention_mask, token_type_ids):
@@ -35,13 +38,15 @@ class LanguageHierarchicalRelationClassification(BertPreTrainedModel):
         bert_config = self.config_class.from_pretrained(args.model_name_or_path)
         super(LanguageHierarchicalRelationClassification, self).__init__(bert_config)
 
+        self.bert = config_model.from_pretrained(args.model_name_or_path, config=bert_config)  # Load pretrained bert
+
         self.trans_layer = []
         self.trans_weight_layer = []
         self.o_label_emb = nn.Embedding(self.num_o_labels, args.o_label_dim)
 
         for i in range(self.num_o_labels):
             self.trans_layer.append(KongJianTrans(bert_config.hidden_size, args.trans_dim))
-            self.trans_weight_layer.append(FCLayer(args.trans_dim, args.trans_dim, dropout_rate=0, use_activation=False))
+            self.trans_weight_layer.append(FCLayer(args.trans_dim, args.o_label_dim, dropout_rate=0, use_activation=False))
 
         self.cls_fc_layer = FCLayer(bert_config.hidden_size, bert_config.hidden_size, args.dropout_rate)
         self.e1_fc_layer = FCLayer(bert_config.hidden_size, bert_config.hidden_size, args.dropout_rate)
@@ -84,13 +89,32 @@ class LanguageHierarchicalRelationClassification(BertPreTrainedModel):
     def trans_weight_voc(self, hidden_output):
 
         output = []
-        for l, h in zip(self.trans_weight_layer, hidden_output):
-            output.append(l(h))
+        for ind, (l, h) in enumerate(zip(self.trans_weight_layer, hidden_output)):
+            h1 = l(h)
+            o1 = self.o_label_emb(torch.LongTensor([ind]))
+            h2 = h1.matmul(o1.transpose(0, 1)).squeeze(1)
+            output.append(h2)
 
-        output = torch.cat(output, dim=-1)
-        o = torch.bmm(self.o_label_emb, output)
+        # output = torch.cat(output, dim=-1)
+        # o = torch.bmm(self.o_label_emb, output)
 
-        return o
+        return output
+
+    @staticmethod
+    def add_weight(o_s, o_w):
+        """
+        :param o_s: [ (16, 86, 300), , , , ]
+        :param o_w: [ (16), , , , ]
+        :return:
+        """
+        res = []
+        a, b = o_s[0].shape[1], o_s[0].shape[2]
+        for i in range(o_s[0].shape[0]):
+            s = torch.zeros((a, b))
+            for j in range(len(o_s)):
+                s += o_s[j][i]*o_w[j][i]
+            res.append(s.unsqueeze(0))
+        return torch.cat(res, dim=0)
 
     def forward(self, input_ids, attention_mask, token_type_ids, e1_mask, e2_mask, o_label=None, m_label=None):
 
@@ -108,6 +132,11 @@ class LanguageHierarchicalRelationClassification(BertPreTrainedModel):
 
         o_s = self.trans_voc(sequence_output)
         o_p = self.trans_voc(pooled_output)
+
+        # o_s1 = self.trans_weight_voc(o_s)
+        o_w = self.trans_weight_voc(o_p)
+
+        sequence_output = self.add_weight(o_s, o_w)
 
         # Average
         e1_h = self.entity_average(sequence_output, e1_mask)
@@ -134,6 +163,9 @@ class LanguageHierarchicalNER(BertPreTrainedModel):
         self.config_class, _, config_model = MODEL_CLASSES[args.model_type]
         bert_config = self.config_class.from_pretrained(args.model_name_or_path)
         super(LanguageHierarchicalNER, self).__init__(bert_config)
+
+        self.bert = config_model.from_pretrained(args.model_name_or_path, config=bert_config)  # Load pretrained bert
+
         self.init_weights()
 
     def forward(self, input_ids, attention_mask, token_type_ids):

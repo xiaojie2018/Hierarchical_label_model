@@ -107,7 +107,7 @@ class KongJianTrans(nn.Module):
 
     def __init__(self, input_dim, output_dim):
 
-        super(KongJianTrans).__init__()
+        super(KongJianTrans, self).__init__()
         self.linear = nn.Linear(input_dim, output_dim)
 
     def forward(self, x):

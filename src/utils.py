@@ -103,46 +103,54 @@ class DataPreprocess:
         self.ADDITIONAL_SPECIAL_TOKENS = ["<e1>", "</e1>", "<e2>", "</e2>", "[UNK]"]
         self.tokenizer = self.load_tokenizer(self.config)
 
+    # def load_tokenizer(self, args):
+    #     if args.model_type in ["albert", "roberta"]:
+    #         class CNerTokenizer(BertTokenizer):
+    #             def __init__(self, vocab_file, do_lower_case=False):
+    #                 super().__init__(vocab_file=str(vocab_file), do_lower_case=do_lower_case)
+    #                 self.vocab_file = str(vocab_file)
+    #                 self.do_lower_case = do_lower_case
+    #                 self.vocab = load_vocab(vocab_file)
+    #
+    #             def tokenize(self, text):
+    #                 _tokens = []
+    #                 for c in text:
+    #                     if self.do_lower_case:
+    #                         c = c.lower()
+    #                     if c in self.vocab:
+    #                         _tokens.append(c)
+    #                     else:
+    #                         _tokens.append('[UNK]')
+    #                 return _tokens
+    #     else:
+    #         class CNerTokenizer(MODEL_CLASSES[args.model_type][1]):
+    #             def __init__(self, vocab_file, do_lower_case=False):
+    #                 super().__init__(vocab_file=str(vocab_file), do_lower_case=do_lower_case)
+    #                 self.vocab_file = str(vocab_file)
+    #                 self.do_lower_case = do_lower_case
+    #                 self.vocab = load_vocab(vocab_file)
+    #
+    #             def tokenize(self, text):
+    #                 _tokens = []
+    #                 for c in text:
+    #                     if self.do_lower_case:
+    #                         c = c.lower()
+    #                     if c in self.vocab:
+    #                         _tokens.append(c)
+    #                     else:
+    #                         _tokens.append('[UNK]')
+    #                 return _tokens
+    #
+    #     tokenizer = CNerTokenizer.from_pretrained(args.model_name_or_path)
+    #
+    #     return tokenizer
+    
     def load_tokenizer(self, args):
         if args.model_type in ["albert", "roberta"]:
-            class CNerTokenizer(BertTokenizer):
-                def __init__(self, vocab_file, do_lower_case=False):
-                    super().__init__(vocab_file=str(vocab_file), do_lower_case=do_lower_case)
-                    self.vocab_file = str(vocab_file)
-                    self.do_lower_case = do_lower_case
-                    self.vocab = load_vocab(vocab_file)
-
-                def tokenize(self, text):
-                    _tokens = []
-                    for c in text:
-                        if self.do_lower_case:
-                            c = c.lower()
-                        if c in self.vocab:
-                            _tokens.append(c)
-                        else:
-                            _tokens.append('[UNK]')
-                    return _tokens
-        else:
-            class CNerTokenizer(MODEL_CLASSES[args.model_type][1]):
-                def __init__(self, vocab_file, do_lower_case=False):
-                    super().__init__(vocab_file=str(vocab_file), do_lower_case=do_lower_case)
-                    self.vocab_file = str(vocab_file)
-                    self.do_lower_case = do_lower_case
-                    self.vocab = load_vocab(vocab_file)
-
-                def tokenize(self, text):
-                    _tokens = []
-                    for c in text:
-                        if self.do_lower_case:
-                            c = c.lower()
-                        if c in self.vocab:
-                            _tokens.append(c)
-                        else:
-                            _tokens.append('[UNK]')
-                    return _tokens
-
-        tokenizer = CNerTokenizer.from_pretrained(args.model_name_or_path)
-
+            tokenizer = BertTokenizer.from_pretrained(args.model_name_or_path)
+            return tokenizer
+        tokenizer = MODEL_CLASSES[args.model_type][1].from_pretrained(args.model_name_or_path)
+        tokenizer.add_special_tokens({"additional_special_tokens": self.ADDITIONAL_SPECIAL_TOKENS})
         return tokenizer
 
     def convert_examples_to_features(self, examples, max_seq_len, tokenizer, cls_token_at_end=False,
@@ -165,10 +173,10 @@ class DataPreprocess:
             text = example.text
             if entity2['start_pos'] >= entity1['end_pos']:
                 text = text[:entity1['start_pos']] + "<e1>" + text[entity1['start_pos']: entity1['end_pos']] + "</e1>" + text[entity1['end_pos']:]
-                text = text[:entity2['start_pos']+2] + "<e2>" + text[entity2['start_pos']+2: entity2['end_pos']+2] + "</e2>" + text[entity2['end_pos']+2:]
+                text = text[:entity2['start_pos']+9] + "<e2>" + text[entity2['start_pos']+9: entity2['end_pos']+9] + "</e2>" + text[entity2['end_pos']+9:]
             elif entity1['start_pos'] >= entity2['end_pos']:
                 text = text[:entity2['start_pos']] + "<e2>" + text[entity2['start_pos']: entity2['end_pos']] + "</e2>" + text[entity2['end_pos']:]
-                text = text[:entity1['start_pos'] + 2] + "<e1>" + text[entity1['start_pos'] + 2: entity1['end_pos'] + 2] + "</e1>" + text[entity1['end_pos'] + 2:]
+                text = text[:entity1['start_pos'] + 9] + "<e1>" + text[entity1['start_pos'] + 9: entity1['end_pos'] + 9] + "</e1>" + text[entity1['end_pos'] + 9:]
             else:
                 continue
 

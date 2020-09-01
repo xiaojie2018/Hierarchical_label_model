@@ -9,7 +9,7 @@ from argparse import Namespace
 from trainer import Trainer
 from utils import init_logger, DataPreprocess
 import logging
-
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 logger = logging.getLogger(__name__)
 
 init_logger()
@@ -28,6 +28,9 @@ class HierarchicalLabelModelTrain(DataPreprocess):
         train_data, o_label1, m_label1 = self.get_data(self.config.train_file_url)
         test_data, o_label2, m_label2 = self.get_data(self.config.test_file_url)
 
+        train_data = train_data[:1000]
+        test_data = test_data[:100]
+
         o_labels = list(set(o_label1 + o_label2).difference(set(["NEG_TEXT"])))
         m_labels = list(set(m_label1 + m_label2).difference(set(["NEG_TEXT"])))
 
@@ -38,8 +41,10 @@ class HierarchicalLabelModelTrain(DataPreprocess):
 
         self.train_data, self.train_examples = self._get_data(train_data, o_labels, m_labels, "train")
         logger.info("train data num: {} ".format(str(len(train_data))))
+
         self.test_data, self.test_examples = self._get_data(test_data, o_labels, m_labels, set_type="test")
         logger.info("test data num: {} ".format(str(len(test_data))))
+
         self.dev_data, self.dev_examples = self._get_data(test_data, o_labels, m_labels, set_type="dev")
         logger.info("dev data num: {} ".format(str(len(test_data))))
 
@@ -53,8 +58,8 @@ class HierarchicalLabelModelTrain(DataPreprocess):
         vocab_file = os.path.join(self.config.pretrained_model_path, "vocab.txt")
         out_vocab_file = os.path.join(self.model_save_path, "vocab.txt")
 
-        f_w = open(out_vocab_file, 'w')
-        with open(vocab_file, 'r') as f_r:
+        f_w = open(out_vocab_file, 'w', encoding='utf-8')
+        with open(vocab_file, 'r', encoding='utf-8') as f_r:
             for line in f_r:
                 f_w.write(line)
         f_w.close()
@@ -82,7 +87,8 @@ if __name__ == '__main__':
         "ADDITIONAL_SPECIAL_TOKENS": [],
         "model_dir": "./output",
         "model_type": "bert",
-        "task_type": ["classification", 'ner'][1],
+        "task_name": "relation_classification",
+        "task_type": ["relation_classification", 'ner'][0],
         "model_name_or_path":
             ["E:\\nlp_tools\\bert_models\\bert-base-chinese", "/home/hemei/xjie/bert_models/bert-base-chinese"][0],
         "seed": 1234,
@@ -141,20 +147,20 @@ if __name__ == '__main__':
         "electra_small_discriminator": "E:\\nlp_tools\\electra_models\\chinese_electra_small_discriminator_pytorch",
         # "electra_small_generator": "E:\\nlp_tools\\electra_models\\chinese_electra_small_generator_pytorch",
     }
-    # lag_path = '/home/hemei/xjie/bert_models'
-    # pre_model_path = {
-    #     "bert": f"{lag_path}/bert-base-chinese",
-    #     "ernie": f"{lag_path}/ERNIE",
-    #     "albert": f"{lag_path}/albert_base_v1",
-    #     "roberta": f"{lag_path}/chinese_roberta_wwm_ext_pytorch",
-    #     "bert_www": f"{lag_path}/chinese_wwm_pytorch",
-    #     "xlnet_base": f"{lag_path}/chinese_xlnet_base_pytorch",
-    #     "xlnet_mid": f"{lag_path}/chinese_xlnet_mid_pytorch",
-    #     "electra_base_discriminator": f"{lag_path}/chinese_electra_base_discriminator_pytorch",
-    #     "electra_base_generator": "E:\\nlp_tools\\electra_models\\chinese_electra_base_generator_pytorch",
-    #     "electra_small_discriminator": f"{lag_path}/chinese_electra_small_discriminator_pytorch",
-    #     "electra_small_generator": "E:\\nlp_tools\\electra_models\\chinese_electra_small_generator_pytorch",
-    # }
+    lag_path = '/home/hemei/xjie/bert_models'
+    pre_model_path = {
+        "bert": f"{lag_path}/bert-base-chinese",
+        "ernie": f"{lag_path}/ERNIE",
+        "albert": f"{lag_path}/albert_base_v1",
+        "roberta": f"{lag_path}/chinese_roberta_wwm_ext_pytorch",
+        "bert_www": f"{lag_path}/chinese_wwm_pytorch",
+        "xlnet_base": f"{lag_path}/chinese_xlnet_base_pytorch",
+        "xlnet_mid": f"{lag_path}/chinese_xlnet_mid_pytorch",
+        "electra_base_discriminator": f"{lag_path}/chinese_electra_base_discriminator_pytorch",
+        "electra_base_generator": "E:\\nlp_tools\\electra_models\\chinese_electra_base_generator_pytorch",
+        "electra_small_discriminator": f"{lag_path}/chinese_electra_small_discriminator_pytorch",
+        "electra_small_generator": "E:\\nlp_tools\\electra_models\\chinese_electra_small_generator_pytorch",
+    }
 
     config_params['model_type'] = model_type[0]
     config_params['model_name_or_path'] = pre_model_path[config_params['model_type']]
