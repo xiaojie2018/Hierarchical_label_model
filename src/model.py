@@ -48,14 +48,20 @@ class LanguageHierarchicalRelationClassification(BertPreTrainedModel):
             self.trans_layer.append(KongJianTrans(bert_config.hidden_size, args.trans_dim))
             self.trans_weight_layer.append(FCLayer(args.trans_dim, args.o_label_dim, dropout_rate=0, use_activation=False))
 
-        self.cls_fc_layer = FCLayer(bert_config.hidden_size, bert_config.hidden_size, args.dropout_rate)
-        self.e1_fc_layer = FCLayer(bert_config.hidden_size, bert_config.hidden_size, args.dropout_rate)
-        self.e2_fc_layer = FCLayer(bert_config.hidden_size, bert_config.hidden_size, args.dropout_rate)
+        # self.cls_fc_layer = FCLayer(bert_config.hidden_size, bert_config.hidden_size, args.dropout_rate)
+        # self.e1_fc_layer = FCLayer(bert_config.hidden_size, bert_config.hidden_size, args.dropout_rate)
+        # self.e2_fc_layer = FCLayer(bert_config.hidden_size, bert_config.hidden_size, args.dropout_rate)
+
+        self.cls_fc_layer = FCLayer(args.trans_dim, args.trans_dim, args.dropout_rate)
+        self.e1_fc_layer = FCLayer(args.trans_dim, args.trans_dim, args.dropout_rate)
+        self.e2_fc_layer = FCLayer(args.trans_dim, args.trans_dim, args.dropout_rate)
 
         if self.args.is_muti_label:
-            self.fc = FCLayerSigmoid(bert_config.hidden_size*3, self.num_m_labels)
+            self.fc = FCLayerSigmoid(args.trans_dim*3, self.num_m_labels)
         else:
-            self.fc = FCLayerSoftmax(bert_config.hidden_size*3, self.num_m_labels)
+            self.fc = FCLayerSoftmax(args.trans_dim*3, self.num_m_labels)
+
+        self.softmax = nn.Softmax(-1)
 
         # loss
         self.loss_fct_bce = nn.BCELoss()
@@ -104,7 +110,7 @@ class LanguageHierarchicalRelationClassification(BertPreTrainedModel):
     def add_weight(o_s, o_w):
         """
         :param o_s: [ (16, 86, 300), , , , ]
-        :param o_w: [ (16), , , , ]
+        :param o_w: [ (16, 5), , , , ]
         :return:
         """
         res = []
@@ -112,8 +118,25 @@ class LanguageHierarchicalRelationClassification(BertPreTrainedModel):
         for i in range(o_s[0].shape[0]):
             s = torch.zeros((a, b))
             for j in range(len(o_s)):
-                s += o_s[j][i]*o_w[j][i]
+                s += o_s[j][i]*o_w[i][j]
             res.append(s.unsqueeze(0))
+        return torch.cat(res, dim=0)
+
+    @staticmethod
+    def add_weight_pool(o_p, o_w):
+        """
+        :param o_p:  [ (16, 300), , , , ]
+        :param o_w:  [ (16, 5), , , , ]
+        :return:
+        """
+        res = []
+        a = o_p[0].shape[1]
+        for i in range(o_p[0].shape[0]):
+            s = torch.zeros(a)
+            for j in range(len(o_p)):
+                s += o_p[j][i]*o_w[i][j]
+            res.append(s.unsqueeze(0))
+
         return torch.cat(res, dim=0)
 
     def forward(self, input_ids, attention_mask, token_type_ids, e1_mask, e2_mask, o_label=None, m_label=None):
@@ -136,7 +159,16 @@ class LanguageHierarchicalRelationClassification(BertPreTrainedModel):
         # o_s1 = self.trans_weight_voc(o_s)
         o_w = self.trans_weight_voc(o_p)
 
-        sequence_output = self.add_weight(o_s, o_w)
+        o_w1 = []
+        for i in o_w:
+            i = i.unsqueeze(0)
+            o_w1.append(i)
+        o_w1 = torch.cat(o_w1, 0).transpose(0, 1)
+        o_w1 = self.softmax(o_w1)
+
+        sequence_output = self.add_weight(o_s, o_w1)
+
+        pooled_output = self.add_weight_pool(o_p, o_w1)
 
         # Average
         e1_h = self.entity_average(sequence_output, e1_mask)
@@ -152,6 +184,20 @@ class LanguageHierarchicalRelationClassification(BertPreTrainedModel):
         logits = self.fc(concat_h)
 
         outputs = (logits,)
+
+        if o_label is not None and m_label is not None:
+            # 计算第一个loss
+            loss1 = self.loss_fct_bce(o_w1, o_label)
+
+            # 计算任务loss
+
+            loss2 = self.loss_fct_bce(logits, m_label)
+
+            loss = loss1 + loss2
+
+            outputs = (logits,) + (loss,)
+
+        return outputs
 
 
 class LanguageHierarchicalNER(BertPreTrainedModel):
